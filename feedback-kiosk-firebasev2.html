@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Feedback</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f5f7;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .screen { display: none; width: 100vw; height: 100vh; align-items: center; justify-content: center; flex-direction: column; padding: 40px; }
+  .screen.active { display: flex; }
+
+  .logo { font-size: 22px; font-weight: 600; color: #1d1d1f; margin-bottom: 12px; letter-spacing: -0.5px; }
+  .question { font-size: 32px; font-weight: 700; color: #1d1d1f; text-align: center; margin-bottom: 8px; line-height: 1.2; }
+  .subquestion { font-size: 18px; color: #6e6e73; text-align: center; margin-bottom: 56px; }
+
+  .ratings { display: flex; flex-direction: row; gap: 28px; align-items: center; justify-content: center; flex-wrap: nowrap; }
+  .rating-btn { display: flex; flex-direction: column; align-items: center; gap: 14px; cursor: pointer; user-select: none; }
+  .rating-face {
+    width: 120px; height: 120px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 56px; cursor: pointer; transition: transform 0.12s, box-shadow 0.12s;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.13);
+  }
+  .rating-face:active { transform: scale(0.91); }
+  .r1 .rating-face { background: #FF4C4C; }
+  .r2 .rating-face { background: #FFD000; }
+  .r3 .rating-face { background: #7ED67E; }
+  .r4 .rating-face { background: #22A84A; }
+  .rating-label { font-size: 15px; color: #3a3a3c; text-align: center; font-weight: 600; letter-spacing: 0.1px; }
+
+  .feedback-title { font-size: 28px; font-weight: 700; color: #1d1d1f; text-align: center; margin-bottom: 6px; }
+  .feedback-sub { font-size: 16px; color: #6e6e73; text-align: center; margin-bottom: 36px; }
+  .tags-grid { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; max-width: 600px; margin-bottom: 32px; }
+  .tag {
+    padding: 16px 32px; border-radius: 32px; border: 1.5px solid #d1d1d6;
+    font-size: 17px; color: #1d1d1f; background: white; cursor: pointer;
+    transition: all 0.12s; font-weight: 500; user-select: none;
+  }
+  .tag.selected { background: #1d1d1f; color: white; border-color: #1d1d1f; }
+  .tag:active { transform: scale(0.96); }
+  .comment-box {
+    width: 100%; max-width: 600px; padding: 16px; border-radius: 14px;
+    border: 1.5px solid #d1d1d6; font-size: 16px; font-family: inherit;
+    resize: none; color: #1d1d1f; background: white; outline: none; margin-bottom: 28px;
+  }
+  .comment-box:focus { border-color: #007AFF; }
+  .btn-send {
+    background: #1d1d1f; color: white; border: none; border-radius: 14px;
+    padding: 18px 64px; font-size: 18px; font-weight: 600; cursor: pointer;
+    transition: all 0.12s;
+  }
+  .btn-send:disabled { background: #b0b0b8; cursor: not-allowed; }
+  .btn-send:active:not(:disabled) { transform: scale(0.97); background: #3a3a3c; }
+  .btn-back { background: none; border: none; color: #007AFF; font-size: 16px; cursor: pointer; margin-top: 16px; font-family: inherit; padding: 8px; }
+
+  .thanks-icon { font-size: 80px; margin-bottom: 24px; }
+  .thanks-title { font-size: 36px; font-weight: 700; color: #1d1d1f; margin-bottom: 12px; }
+  .thanks-sub { font-size: 20px; color: #6e6e73; text-align: center; max-width: 400px; }
+  .progress-bar { width: 200px; height: 4px; background: #e5e5ea; border-radius: 2px; margin-top: 40px; overflow: hidden; }
+  .progress-fill { height: 100%; background: #1d1d1f; border-radius: 2px; }
+
+  .status-dot {
+    position: fixed; top: 16px; right: 16px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #ccc; transition: background 0.3s; z-index: 50;
+  }
+  .status-dot.online { background: #52D68A; }
+  .status-dot.offline { background: #FF6B6B; }
+  .status-dot.syncing { background: #FFB347; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .setup-card {
+    background: white; border-radius: 24px; padding: 40px;
+    width: 90%; max-width: 460px; box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+    max-height: 90vh; overflow-y: auto;
+  }
+  .setup-card h2 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+  .setup-card p { font-size: 15px; color: #6e6e73; margin-bottom: 28px; line-height: 1.5; }
+  .setup-card label { font-size: 13px; font-weight: 600; color: #6e6e73; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px; }
+  .setup-card input {
+    width: 100%; padding: 14px; border: 1.5px solid #d1d1d6; border-radius: 12px;
+    font-size: 16px; font-family: inherit; outline: none; margin-bottom: 20px; color: #1d1d1f;
+  }
+  .setup-card input:focus { border-color: #007AFF; }
+  .btn-setup { background: #1d1d1f; color: white; border: none; border-radius: 12px; padding: 16px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; font-family: inherit; margin-top: 4px; }
+  .setup-warning { background: #FFF8E7; border: 1px solid #FFD980; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #7A5C00; margin-bottom: 20px; line-height: 1.5; }
+  .setup-steps { background: #F2F2F7; border-radius: 12px; padding: 16px; margin-bottom: 20px; font-size: 13px; color: #3a3a3c; line-height: 2; }
+  .setup-steps a { color: #007AFF; text-decoration: none; }
+
+  .config-btn { position: fixed; bottom: 16px; right: 16px; background: rgba(0,0,0,0.07); border: none; border-radius: 20px; padding: 8px 16px; font-size: 13px; color: #6e6e73; cursor: pointer; font-family: inherit; z-index: 100; }
+  .offline-badge { position: fixed; bottom: 56px; right: 0; left: 0; text-align: center; background: #FF6B6B; color: white; font-size: 13px; font-weight: 500; padding: 6px; display: none; z-index: 80; }
+  .offline-badge.show { display: block; }
+
+  @keyframes fadein { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
+  .screen.active { animation: fadein 0.2s ease; }
+</style>
+</head>
+<body>
+
+<div class="status-dot" id="status-dot"></div>
+<div class="offline-badge" id="offline-badge">📡 No connection — response saved locally and will sync when reconnected</div>
+
+<!-- SETUP SCREEN -->
+<div class="screen active" id="screen-setup">
+  <div class="setup-card">
+    <h2>⚙️ Kiosk Setup</h2>
+    <p>Configure this iPad once. Data will sync in real time with all other terminals.</p>
+
+    <label>API Key</label>
+    <input id="cfg-apikey" placeholder="AIzaSy...">
+    <label>Project ID</label>
+    <input id="cfg-projectid" placeholder="my-project-12345">
+    <label>Database URL</label>
+    <input id="cfg-dburl" placeholder="https://my-project-default-rtdb.firebaseio.com">
+    <label>Location / Terminal name</label>
+    <input id="cfg-location" placeholder="e.g. Register 1, Reception, North Store">
+    <label>Company name</label>
+    <input id="cfg-company" placeholder="e.g. The Good Coffee Co.">
+    <label>Admin password (to reconfigure)</label>
+    <input id="cfg-password" type="password" placeholder="Choose a password">
+    <button class="btn-setup" onclick="saveSetup()">Save and start</button>
+  </div>
+</div>
+
+<!-- SCREEN 1: RATING -->
+<div class="screen" id="screen-rating">
+  <div class="logo" id="logo-text">Your opinion matters</div>
+  <div class="question">How was your experience?</div>
+  <div class="subquestion" id="location-label"></div>
+  <div class="ratings">
+    <div class="rating-btn r1" onclick="selectRating(1)">
+      <div class="rating-face">😞</div>
+      <div class="rating-label">Bad</div>
+    </div>
+    <div class="rating-btn r2" onclick="selectRating(2)">
+      <div class="rating-face">😕</div>
+      <div class="rating-label">Average</div>
+    </div>
+    <div class="rating-btn r3" onclick="selectRating(3)">
+      <div class="rating-face">😊</div>
+      <div class="rating-label">Good</div>
+    </div>
+    <div class="rating-btn r4" onclick="selectRating(4)">
+      <div class="rating-face">😄</div>
+      <div class="rating-label">Great</div>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN 2: FEEDBACK -->
+<div class="screen" id="screen-feedback">
+  <div class="feedback-title" id="feedback-title">Where can we improve?</div>
+  <div class="feedback-sub">Select all that apply (optional)</div>
+  <div class="tags-grid" id="tags-grid"></div>
+  <textarea class="comment-box" id="comment" rows="3" placeholder="Additional comments (optional)..."></textarea>
+  <button class="btn-send" id="btn-send" onclick="submitFeedback()">Submit</button>
+  <button class="btn-back" onclick="goBack()">← Back</button>
+</div>
+
+<!-- SCREEN 3: THANK YOU -->
+<div class="screen" id="screen-thanks">
+  <div class="thanks-icon">🙏</div>
+  <div class="thanks-title">Thank you!</div>
+  <div class="thanks-sub">Your feedback has been recorded and helps us improve.</div>
+  <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+</div>
+
+<button class="config-btn" onclick="openReconfig()">⚙ Settings</button>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+const CONFIG_KEY = 'kiosk_firebase_config_v2';
+const QUEUE_KEY  = 'kiosk_offline_queue_v1';
+
+const tagsByRating = {
+  1: ['Value (Price)', 'Product', 'Service'],
+  2: ['Value (Price)', 'Product', 'Service'],
+  3: ['Value (Price)', 'Product', 'Service'],
+  4: ['Value (Price)', 'Product', 'Service']
+};
+
+const feedbackTitles = {
+  1: 'Where can we improve?',
+  2: 'Where can we improve?',
+  3: 'Where did we excel?',
+  4: 'Where did we excel?'
+};
+
+let selectedRating = null;
+let selectedTags   = [];
+let db             = null;
+let isOnline       = navigator.onLine;
+let config         = null;
+
+function saveSetup() {
+  const apiKey    = document.getElementById('cfg-apikey').value.trim();
+  const projectId = document.getElementById('cfg-projectid').value.trim();
+  const dbUrl     = document.getElementById('cfg-dburl').value.trim();
+  const location  = document.getElementById('cfg-location').value.trim();
+  const company   = document.getElementById('cfg-company').value.trim();
+  const password  = document.getElementById('cfg-password').value.trim();
+
+  if (!apiKey || !projectId || !dbUrl || !location) {
+    alert('Please fill in all required fields (API Key, Project ID, Database URL and Location name).');
+    return;
+  }
+  config = { apiKey, projectId, dbUrl, location, company, password };
+  localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+  initFirebase();
+}
+
+function openReconfig() {
+  const pwd = prompt('Enter admin password:');
+  if (pwd === null) return;
+  if (config && config.password && pwd !== config.password) {
+    alert('Incorrect password.');
+    return;
+  }
+  showScreen('screen-setup');
+  if (config) {
+    document.getElementById('cfg-apikey').value    = config.apiKey    || '';
+    document.getElementById('cfg-projectid').value = config.projectId || '';
+    document.getElementById('cfg-dburl').value     = config.dbUrl     || '';
+    document.getElementById('cfg-location').value  = config.location  || '';
+    document.getElementById('cfg-company').value   = config.company   || '';
+    document.getElementById('cfg-password').value  = config.password  || '';
+  }
+}
+
+function initFirebase() {
+  try {
+    if (firebase.apps.length) firebase.apps[0].delete();
+    firebase.initializeApp({
+      apiKey:      config.apiKey,
+      projectId:   config.projectId,
+      databaseURL: config.dbUrl,
+    });
+    db = firebase.database();
+    setStatus('syncing');
+    db.ref('.info/connected').on('value', snap => {
+      isOnline = snap.val() === true;
+      setStatus(isOnline ? 'online' : 'offline');
+      document.getElementById('offline-badge').classList.toggle('show', !isOnline);
+      if (isOnline) flushQueue();
+    });
+    applyConfig();
+    showScreen('screen-rating');
+  } catch(e) {
+    alert('Firebase connection error: ' + e.message + '\n\nPlease check your credentials.');
+  }
+}
+
+function setStatus(s) {
+  document.getElementById('status-dot').className = 'status-dot ' + s;
+}
+
+function enqueue(entry) {
+  const q = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
+  q.push(entry);
+  localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+}
+
+async function flushQueue() {
+  const q = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
+  if (!q.length) return;
+  setStatus('syncing');
+  const remaining = [];
+  for (const entry of q) {
+    try { await db.ref('feedbacks/' + entry.id).set(entry); }
+    catch(e) { remaining.push(entry); }
+  }
+  localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
+  setStatus(remaining.length ? 'offline' : 'online');
+}
+
+function applyConfig() {
+  if (config.location) document.getElementById('location-label').textContent = config.location;
+  if (config.company)  document.getElementById('logo-text').textContent = config.company;
+}
+
+function selectRating(r) {
+  selectedRating = r;
+  selectedTags   = [];
+  document.getElementById('comment').value     = '';
+  document.getElementById('btn-send').disabled = false;
+  document.getElementById('feedback-title').textContent = feedbackTitles[r];
+
+  const grid = document.getElementById('tags-grid');
+  grid.innerHTML = '';
+  tagsByRating[r].forEach(tag => {
+    const el = document.createElement('div');
+    el.className = 'tag';
+    el.textContent = tag;
+    el.onclick = () => toggleTag(el, tag);
+    grid.appendChild(el);
+  });
+  showScreen('screen-feedback');
+}
+
+function toggleTag(el, tag) {
+  if (el.classList.contains('selected')) {
+    el.classList.remove('selected');
+    selectedTags = selectedTags.filter(t => t !== tag);
+  } else {
+    el.classList.add('selected');
+    selectedTags.push(tag);
+  }
+}
+
+async function submitFeedback() {
+  const btn = document.getElementById('btn-send');
+  btn.disabled    = true;
+  btn.textContent = 'Sending...';
+
+  const entry = {
+    id:        Date.now() + '_' + Math.random().toString(36).substr(2, 8),
+    timestamp: new Date().toISOString(),
+    rating:    selectedRating,
+    tags:      selectedTags,
+    comment:   document.getElementById('comment').value.trim(),
+    location:  config.location || 'Unknown',
+    company:   config.company  || '',
+  };
+
+  if (db && isOnline) {
+    try {
+      setStatus('syncing');
+      await db.ref('feedbacks/' + entry.id).set(entry);
+      setStatus('online');
+    } catch(e) {
+      enqueue(entry);
+      setStatus('offline');
+    }
+  } else {
+    enqueue(entry);
+  }
+
+  btn.textContent = 'Submit';
+  showScreen('screen-thanks');
+
+  const pf = document.getElementById('progress-fill');
+  pf.style.transition = 'none'; pf.style.width = '0%';
+  setTimeout(() => { pf.style.transition = 'width 4s linear'; pf.style.width = '100%'; }, 30);
+  setTimeout(() => { showScreen('screen-rating'); }, 4200);
+}
+
+function goBack() { showScreen('screen-rating'); }
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+window.addEventListener('online',  () => { isOnline = true;  setStatus('online');  document.getElementById('offline-badge').classList.remove('show'); if(db) flushQueue(); });
+window.addEventListener('offline', () => { isOnline = false; setStatus('offline'); document.getElementById('offline-badge').classList.add('show'); });
+
+const saved = localStorage.getItem(CONFIG_KEY);
+if (saved) {
+  try { config = JSON.parse(saved); initFirebase(); }
+  catch(e) { showScreen('screen-setup'); }
+} else {
+  showScreen('screen-setup');
+}
+</script>
+</body>
+</html>

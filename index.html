@@ -253,6 +253,7 @@ function initFirebase() {
       if (isOnline) flushQueue();
     });
     applyConfig();
+    startPresence();
     showScreen('screen-rating');
   } catch(e) {
     alert('Firebase connection error: ' + e.message + '\n\nPlease check your credentials.');
@@ -286,6 +287,31 @@ function applyConfig() {
   if (config.location) document.getElementById('location-label').textContent = config.location;
   if (config.company)  document.getElementById('logo-text').textContent = config.company;
 }
+
+// ── PRESENCE ──────────────────────────────────────────
+let heartbeatInterval = null;
+
+function startPresence() {
+  if (!db || !config.location) return;
+  const key = config.location.replace(/[.#$[\]]/g, '_');
+  const ref  = db.ref('presence/' + key);
+
+  function beat() {
+    if (!isOnline) return;
+    ref.set({ location: config.location, company: config.company || '', lastSeen: Date.now(), online: true });
+  }
+
+  // Mark offline when browser/tab closes
+  ref.onDisconnect().update({ online: false, lastSeen: Date.now() });
+
+  beat();
+  heartbeatInterval = setInterval(beat, 30000);
+}
+
+// Restart presence after reconnect
+db.ref('.info/connected').on('value', snap => {
+  if (snap.val() === true) startPresence();
+});
 
 function selectRating(r) {
   selectedRating = r;
